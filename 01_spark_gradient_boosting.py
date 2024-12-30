@@ -63,3 +63,11 @@ conn = cmldata.get_connection(CONNECTION_NAME)
 spark = conn.get_spark_session()
 
 df = spark.sql("SELECT * FROM spark_catalog.biomarkers_db.biomarkers_table")
+
+
+    .config("spark.dynamicAllocation.enabled", "false")\
+    .config("spark.executor.cores", "4")\
+    .config("spark.executor.memory", "4g")\
+    .config("spark.executor.instances", "4")\
+    .config("spark.driver.core","4")\
+    .config("spark.driver.memory","4g")\

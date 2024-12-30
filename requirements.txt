@@ -12,3 +12,6 @@ onnxmltools
 onnx
 xgboost
 PyArrow
+jmespath
+dbldatagen
+faker

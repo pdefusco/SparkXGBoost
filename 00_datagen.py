@@ -106,8 +106,8 @@ import cml.data_v1 as cmldata
 
 # Sample in-code customization of spark configurations
 from pyspark import SparkContext
-SparkContext.setSystemProperty('spark.executor.cores', '1')
-SparkContext.setSystemProperty('spark.executor.memory', '2g')
+SparkContext.setSystemProperty('spark.executor.cores', '2')
+SparkContext.setSystemProperty('spark.executor.memory', '4g')
 
 CONNECTION_NAME = "se-aw-mdl"
 conn = cmldata.get_connection(CONNECTION_NAME)
@@ -116,4 +116,4 @@ spark = conn.get_spark_session()
 myDG = HealthDataGen(spark)
 
 biomarkersDf = myDG.biomarkersDataGen()
-biomarkersDf.writeTo("spark_catalog.biomarkers_db.biomarkers_table}").using("iceberg").createOrReplace()
+biomarkersDf.writeTo("spark_catalog.default.biomarkers_table").using("iceberg").createOrReplace()

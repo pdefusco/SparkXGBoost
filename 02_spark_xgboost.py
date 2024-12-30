@@ -45,12 +45,12 @@ import dbldatagen as dg
 import dbldatagen.distributions as dist
 from dbldatagen import FakerTextFactory, DataGenerator, fakerText
 from faker.providers import bank, credit_card, currency
+from xgboost.spark import SparkXGBClassifier
 from pyspark.sql.types import LongType, FloatType, IntegerType, StringType, \
                               DoubleType, BooleanType, ShortType, \
                               TimestampType, DateType, DecimalType, \
                               ByteType, BinaryType, ArrayType, MapType, \
                               StructType, StructField
-
 import cml.data_v1 as cmldata
 
 # Sample in-code customization of spark configurations
@@ -58,18 +58,17 @@ from pyspark import SparkContext
 SparkContext.setSystemProperty('spark.executor.cores', '2')
 SparkContext.setSystemProperty('spark.executor.memory', '4g')
 SparkContext.setSystemProperty('spark.executor.instances', '4')
-SparkContext.setSystemProperty('spark.executor.memory', '4g')
 SparkContext.setSystemProperty('spark.driver.cores', '2')
 SparkContext.setSystemProperty('spark.driver.memory', '4g')
 
 
-CONNECTION_NAME = "se-aw-mdl"
+CONNECTION_NAME = "se-aws-edl"
 conn = cmldata.get_connection(CONNECTION_NAME)
 spark = conn.get_spark_session()
 
 print("https://spark-"+os.environ["CDSW_ENGINE_ID"]+"."+os.environ["CDSW_DOMAIN"])
 
-df = spark.sql("SELECT * FROM spark_catalog.biomarkers_db.biomarkers_table")
+df = spark.sql("SELECT * FROM spark_catalog.default.biomarkers_table")
 
 # assume the label column is named "class"
 label_name = "asthmatic_bronchitis"
@@ -77,11 +76,12 @@ label_name = "asthmatic_bronchitis"
 # get a list with feature column names
 feature_names = [x.name for x in df.schema if x.name != label_name]
 
-# create a xgboost pyspark regressor estimator and set device="cuda"
-regressor = SparkXGBClassifier(
+# create a xgboost pyspark classifier estimator and set device="cuda"
+xgb_classifier = SparkXGBClassifier(
   features_col=feature_names,
   label_col=label_name,
-  num_workers=2)
+  num_workers=1,
+  device="cuda")
 
 """xgb_classifier = SparkXGBClassifier(max_depth=5, missing=0.0,
     validation_indicator_col='isVal', weight_col='weight',
