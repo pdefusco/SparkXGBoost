@@ -38,8 +38,10 @@
 #***************************************************************************/
 
 import os
+import mlflow
 import numpy as np
 import pandas as pd
+from pyspark import SparkContext
 from datetime import datetime
 import dbldatagen as dg
 import cml.data_v1 as cmldata
@@ -48,6 +50,7 @@ import dbldatagen.distributions as dist
 from dbldatagen import FakerTextFactory, DataGenerator, fakerText
 from faker.providers import bank, credit_card, currency
 from xgboost.spark import SparkXGBClassifier
+from pyspark.ml.evaluation import MulticlassClassificationEvaluator
 from pyspark.sql.types import LongType, FloatType, IntegerType, StringType, \
                               DoubleType, BooleanType, ShortType, \
                               TimestampType, DateType, DecimalType, \
@@ -57,7 +60,6 @@ from pyspark.sql.types import LongType, FloatType, IntegerType, StringType, \
 
 
 # Sample in-code customization of spark configurations
-from pyspark import SparkContext
 SparkContext.setSystemProperty('spark.executor.cores', '2')
 SparkContext.setSystemProperty('spark.executor.memory', '4g')
 SparkContext.setSystemProperty('spark.executor.instances', '4')
@@ -98,4 +100,18 @@ xgb_classifier = SparkXGBClassifier(
     early_stopping_rounds=1, eval_metric='logloss', num_workers=2)"""
 
 xgb_clf_model = xgb_classifier.fit(train_data)
-xgb_clf_model.transform(test_data).show()
+predictions = xgb_clf_model.transform(test_data).show()
+
+mlflow.set_experiment("PySpark XGBoost CLF")
+
+# Log the model with MLflow
+with mlflow.start_run():
+    mlflow.spark.log_model(xgb_clf_model, "xgboost_model")
+
+    # Evaluate the model
+    evaluator = MulticlassClassificationEvaluator(labelCol=label_name, predictionCol="prediction")
+    accuracy = evaluator.evaluate(predictions, {evaluator.metricName: "accuracy"})
+
+    print("Accuracy:", accuracy)
+
+    mlflow.log_metric("accuracy", accuracy)
