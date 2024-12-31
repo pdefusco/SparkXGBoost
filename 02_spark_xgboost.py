@@ -57,8 +57,6 @@ from pyspark.sql.types import LongType, FloatType, IntegerType, StringType, \
                               ByteType, BinaryType, ArrayType, MapType, \
                               StructType, StructField
 
-
-
 # Sample in-code customization of spark configurations
 SparkContext.setSystemProperty('spark.executor.cores', '2')
 SparkContext.setSystemProperty('spark.executor.memory', '4g')
@@ -88,16 +86,17 @@ df = assembler.transform(df)
 # Split the data into training and testing sets
 train_data, test_data = df.randomSplit([0.7, 0.3], seed=42)
 
-
 # create a xgboost pyspark classifier estimator and set device="cuda"
 xgb_classifier = SparkXGBClassifier(
   features_col="features",
   label_col=label_name,
   num_workers=4)
 
-"""xgb_classifier = SparkXGBClassifier(max_depth=5, missing=0.0,
-    validation_indicator_col='isVal', weight_col='weight',
-    early_stopping_rounds=1, eval_metric='logloss', num_workers=2)"""
+"""
+xgb_classifier = SparkXGBClassifier(max_depth=5, missing=0.0,
+validation_indicator_col='isVal', weight_col='weight',
+early_stopping_rounds=1, eval_metric='logloss', num_workers=2)
+"""
 
 xgb_clf_model = xgb_classifier.fit(train_data)
 predictions = xgb_clf_model.transform(test_data).show()
