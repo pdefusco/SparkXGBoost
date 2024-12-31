@@ -42,6 +42,8 @@ import numpy as np
 import pandas as pd
 from datetime import datetime
 import dbldatagen as dg
+import cml.data_v1 as cmldata
+from pyspark.ml.feature import VectorAssembler
 import dbldatagen.distributions as dist
 from dbldatagen import FakerTextFactory, DataGenerator, fakerText
 from faker.providers import bank, credit_card, currency
@@ -51,7 +53,8 @@ from pyspark.sql.types import LongType, FloatType, IntegerType, StringType, \
                               TimestampType, DateType, DecimalType, \
                               ByteType, BinaryType, ArrayType, MapType, \
                               StructType, StructField
-import cml.data_v1 as cmldata
+
+
 
 # Sample in-code customization of spark configurations
 from pyspark import SparkContext
@@ -60,13 +63,13 @@ SparkContext.setSystemProperty('spark.executor.memory', '4g')
 SparkContext.setSystemProperty('spark.executor.instances', '4')
 SparkContext.setSystemProperty('spark.driver.cores', '2')
 SparkContext.setSystemProperty('spark.driver.memory', '4g')
-
+SparkContext.setSystemProperty('spark.dynamicAllocation.enabled', 'false')
 
 CONNECTION_NAME = "se-aws-edl"
 conn = cmldata.get_connection(CONNECTION_NAME)
 spark = conn.get_spark_session()
 
-print("https://spark-"+os.environ["CDSW_ENGINE_ID"]+"."+os.environ["CDSW_DOMAIN"])
+print("https://spark-"+os.environ["CDSW_ENGINE_ID"] + "."+ os.environ["CDSW_DOMAIN"])
 
 df = spark.sql("SELECT * FROM spark_catalog.default.biomarkers_table")
 
@@ -76,16 +79,23 @@ label_name = "asthmatic_bronchitis"
 # get a list with feature column names
 feature_names = [x.name for x in df.schema if x.name != label_name]
 
+# Assemble features into a single vector column
+assembler = VectorAssembler(inputCols=feature_names, outputCol="features")
+df = assembler.transform(df)
+
+# Split the data into training and testing sets
+train_data, test_data = df.randomSplit([0.7, 0.3], seed=42)
+
+
 # create a xgboost pyspark classifier estimator and set device="cuda"
 xgb_classifier = SparkXGBClassifier(
-  features_col=feature_names,
+  features_col="features",
   label_col=label_name,
-  num_workers=1,
-  device="cuda")
+  num_workers=4)
 
 """xgb_classifier = SparkXGBClassifier(max_depth=5, missing=0.0,
     validation_indicator_col='isVal', weight_col='weight',
     early_stopping_rounds=1, eval_metric='logloss', num_workers=2)"""
 
-xgb_clf_model = xgb_classifier.fit(df)
-xgb_clf_model.transform(df).show()
+xgb_clf_model = xgb_classifier.fit(train_data)
+xgb_clf_model.transform(test_data).show()
